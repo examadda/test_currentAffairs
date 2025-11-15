@@ -25,11 +25,11 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"       # change to 20 if your app requires it
+          node-version: "18"       # change to "22" if you need Node 22
           cache: "npm"
 
       - name: Cache .next (optional)
-        # caching the build output can speed up incremental CI builds for large projects.
+        # caching the Next build cache speeds subsequent CI runs for big projects
         uses: actions/cache@v4
         with:
           path: .next/cache
@@ -56,19 +56,16 @@ jobs:
         run: aws sts get-caller-identity
 
       - name: Deploy with serverless (serverless-next.js) via npx (Serverless v3)
-        # npx serverless@3 ensures we run v3 in CI and avoid serverless v4 login prompts.
+        # npx serverless@3 ensures we run Serverless v3 in CI and avoid Serverless v4 login prompts.
         run: npx --yes serverless@3 --stage prod
         env:
-          # ensure AWS creds are available to serverless
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          # optional: increase Node memory in case of large builds (already in env)
           NODE_OPTIONS: ${{ env.NODE_OPTIONS }}
 
       # Optional: CloudFront invalidation (only if you need immediate cache purge)
-      # Uncomment the following step if you prefer to manually invalidate CloudFront after deploy.
-      # You must set secret CLOUDFRONT_DISTRIBUTION_ID in repo settings.
+      # To use this, uncomment the step and set CLOUDFRONT_DISTRIBUTION_ID in repo secrets.
       # - name: CloudFront invalidate
       #   run: |
       #     aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
@@ -77,15 +74,11 @@ jobs:
       #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       #     AWS_REGION: ${{ secrets.AWS_REGION }}
 
-      - name: Post-deploy: show CloudFront URLs / outputs (helpful debug)
+      - name: "Post-deploy: helpful debug info"
         run: |
-          echo "Deployment finished. Check CloudFront distribution or S3 bucket configured in serverless.yml"
-
-
-
-
-
-
+          echo "Deployment finished."
+          echo "Check the serverless output in the Action logs for CloudFront / S3 details."
+          echo "If you enabled a custom domain, verify DNS and ACM status in AWS Console."
 
 
 
