@@ -3,12 +3,6 @@ name: CI/CD — Deploy Next.js (serverless-next.js)
 on:
   push:
     branches: ["main"]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  id-token: write   # only necessary if you use OIDC role assumption (optional)
-  actions: read
 
 env:
   NODE_OPTIONS: --max_old_space_size=4096
@@ -25,7 +19,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"       # change to "22" if you need Node 22
+          node-version: "22"       # change to "22" if you need Node 22
           cache: "npm"
 
       - name: Cache .next (optional)
