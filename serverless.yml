@@ -1,0 +1,9 @@
+myNextApp:
+  component: "@sls-next/serverless-component@latest"
+  inputs:
+    bucketName: "optional-your-bucket-if-you-want"
+    memory: 1024
+    timeout: 10
+    domain: # optional custom domain object if you use Route53 etc
+      domainName: example.com
+      hostedZoneId: ZXXXXXXXX
