@@ -3,28 +3,47 @@ name: CI/CD — Deploy Next.js (serverless-next.js)
 on:
   push:
     branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # only necessary if you use OIDC role assumption (optional)
+  actions: read
+
+env:
+  NODE_OPTIONS: --max_old_space_size=4096
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      NODE_OPTIONS: --max_old_space_size=4096
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"       
+          node-version: "18"       # change to 20 if your app requires it
           cache: "npm"
 
-      - name: Install deps
+      - name: Cache .next (optional)
+        # caching the build output can speed up incremental CI builds for large projects.
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-next-cache-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-next-cache-
+
+      - name: Install dependencies
         run: npm ci
 
       - name: Build Next.js
         run: npm run build
+        env:
+          CI: true
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -33,10 +52,89 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Install Serverless (component)
-        run: npm install -g serverless
+      - name: Verify AWS identity (debug)
+        run: aws sts get-caller-identity
 
-      - name: Deploy with serverless (serverless-next.js)
+      - name: Deploy with serverless (serverless-next.js) via npx (Serverless v3)
+        # npx serverless@3 ensures we run v3 in CI and avoid serverless v4 login prompts.
+        run: npx --yes serverless@3 --stage prod
+        env:
+          # ensure AWS creds are available to serverless
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          # optional: increase Node memory in case of large builds (already in env)
+          NODE_OPTIONS: ${{ env.NODE_OPTIONS }}
+
+      # Optional: CloudFront invalidation (only if you need immediate cache purge)
+      # Uncomment the following step if you prefer to manually invalidate CloudFront after deploy.
+      # You must set secret CLOUDFRONT_DISTRIBUTION_ID in repo settings.
+      # - name: CloudFront invalidate
+      #   run: |
+      #     aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+      #   env:
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      - name: Post-deploy: show CloudFront URLs / outputs (helpful debug)
         run: |
-          # deploys according to serverless.yml in repo root
-          serverless --stage prod
+          echo "Deployment finished. Check CloudFront distribution or S3 bucket configured in serverless.yml"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# name: CI/CD — Deploy Next.js (serverless-next.js)
+
+# on:
+#   push:
+#     branches: ["main"]
+
+# jobs:
+#   build-and-deploy:
+#     runs-on: ubuntu-latest
+#     env:
+#       NODE_OPTIONS: --max_old_space_size=4096
+
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: "22"       
+#           cache: "npm"
+
+#       - name: Install deps
+#         run: npm ci
+
+#       - name: Build Next.js
+#         run: npm run build
+
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v2
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ secrets.AWS_REGION }}
+
+#       - name: Install Serverless (component)
+#         run: npm install -g serverless
+
+#       - name: Deploy with serverless (serverless-next.js)
+#         run: |
+#           # deploys according to serverless.yml in repo root
+#           serverless --stage prod
