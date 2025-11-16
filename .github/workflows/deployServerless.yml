@@ -12,6 +12,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
+    # expose secrets into job env (so we can safely reference them in step `if:` expressions)
+    env:
+      NODE_OPTIONS: ${{ env.NODE_OPTIONS }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      # if you set BUCKET_NAME secret in repo, it'll be available as env.BUCKET_NAME here
+      BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,10 +56,10 @@ jobs:
         run: aws sts get-caller-identity
 
       - name: Ensure S3 bucket exists (create if missing)
-        if: ${{ secrets.BUCKET_NAME != '' }}
+        if: ${{ env.BUCKET_NAME != '' }}
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          BUCKET: ${{ secrets.BUCKET_NAME }}
+          BUCKET: ${{ env.BUCKET_NAME }}
         run: |
           set -e
           echo "Checking bucket: $BUCKET (region: $AWS_REGION)"
@@ -68,10 +75,10 @@ jobs:
           fi
 
       - name: Sync built files to S3 (optional)
-        if: ${{ secrets.BUCKET_NAME != '' }}
+        if: ${{ env.BUCKET_NAME != '' }}
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          BUCKET: ${{ secrets.BUCKET_NAME }}
+          BUCKET: ${{ env.BUCKET_NAME }}
         run: |
           set -e
           if [ -d ".next/static" ]; then
@@ -97,15 +104,15 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           NODE_OPTIONS: ${{ env.NODE_OPTIONS }}
 
-      # Optional: CloudFront invalidation
+      # Optional: CloudFront invalidation (uncomment to use)
       # - name: CloudFront invalidate
-      #   if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+      #   if: ${{ env.CLOUDFRONT_DISTRIBUTION_ID != '' }}
       #   env:
       #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       #     AWS_REGION: ${{ secrets.AWS_REGION }}
       #   run: |
-      #     aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+      #     aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
       # - name: Post-deploy: helpful debug info
       #   run: |
