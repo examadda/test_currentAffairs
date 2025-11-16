@@ -13,7 +13,6 @@ jobs:
     timeout-minutes: 60
     # expose secrets as env for use inside 'if' expressions and steps
     env:
-      NODE_OPTIONS: ${{ env.NODE_OPTIONS }}
       BUCKET: ${{ secrets.BUCKET_NAME }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
 
@@ -78,9 +77,10 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ env.AWS_REGION }}
-          NODE_OPTIONS: ${{ env.NODE_OPTIONS }}
+          # NODE_OPTIONS is inherited from top-level env; no expression here
 
       - name: "Post-deploy: helpful debug info"
         run: |
           echo "Deployment finished."
           echo "Check the serverless output in the Action logs for CloudFront / S3 details."
+          echo "If you enabled a custom domain, verify DNS and ACM status in AWS Console."
