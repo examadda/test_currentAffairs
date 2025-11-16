@@ -4,6 +4,7 @@ on:
   push:
     branches: ["main"]
 
+# top-level env (available to all steps)
 env:
   NODE_OPTIONS: --max_old_space_size=4096
 
@@ -12,11 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
-    # expose secrets into job env (so we can safely reference them in step `if:` expressions)
+    # expose secrets into job env so step `if:` can use env.BUCKET_NAME
     env:
-      NODE_OPTIONS: ${{ env.NODE_OPTIONS }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
-      # if you set BUCKET_NAME secret in repo, it'll be available as env.BUCKET_NAME here
       BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
 
     steps:
@@ -114,8 +113,3 @@ jobs:
       #   run: |
       #     aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
-      # - name: Post-deploy: helpful debug info
-      #   run: |
-      #     echo "Deployment finished."
-      #     echo "Check the 'Deploy with Serverless Components CLI' step logs for S3/CloudFront output."
-      #     echo "If you used a custom domain, confirm DNS & ACM status in AWS Console."
