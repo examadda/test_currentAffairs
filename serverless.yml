@@ -1,4 +1,4 @@
-myNextApp:
+CurrentAffairsApp:
   component: "@sls-next/serverless-component@latest"
   inputs:
     bucketName: "post-examadda"

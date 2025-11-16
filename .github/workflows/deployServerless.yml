@@ -48,6 +48,25 @@ jobs:
 
       - name: Verify AWS identity (debug)
         run: aws sts get-caller-identity
+      - name: Ensure S3 bucket exists (create if missing)
+        ### ADDED >>> this step auto-creates the bucket if missing
+        if: ${{ secrets.BUCKET_NAME != '' }}
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          BUCKET: ${{ secrets.BUCKET_NAME }}
+        run: |
+          ### ADDED >>> check bucket & create if not exists
+          set -e
+          if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+            echo "Bucket $BUCKET already exists or is accessible"
+          else
+            echo "Creating S3 bucket $BUCKET in $AWS_REGION"
+            aws s3api create-bucket \
+              --bucket "$BUCKET" \
+              --region "$AWS_REGION" \
+              --create-bucket-configuration LocationConstraint="$AWS_REGION"
+            echo "Created $BUCKET"
+          fi
 
       - name: Deploy with serverless (serverless-next.js) via npx (Serverless v3)
         # npx serverless@3 ensures we run Serverless v3 in CI and avoid Serverless v4 login prompts.
