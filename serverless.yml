@@ -1,25 +1,12 @@
 myNextApp:
   component: "@sls-next/serverless-component@latest"
   inputs:
-    bucketName: "examadda-s3"
+    bucketName: "CurrentAffair"
     memory: 1024
     timeout: 10
-    domain: # optional custom domain object if you use Route53 etc
+    cloudfront:
+      defaults:
+        ttl: 86400
+    domain:   # enable if you have Route53 hosted zone
       domainName: examadda.org
-      hostedZoneId: ZXXXXXXXX
-
-
-
-# myNextApp:
-#   component: "@sls-next/serverless-component@latest"
-#   inputs:
-#     # optional: specify existing bucket or let component create one
-#     # bucketName: "my-existing-bucket-name"
-#     memory: 1024
-#     timeout: 10
-#     cloudfront:
-#       defaults:
-#         ttl: 86400
-#     # domain:   # enable if you have Route53 hosted zone
-#     #   domainName: example.com
-#     #   hostedZoneId: ZXXXXXXXXXXXX
+      hostedZoneId: ZXXXXXXXXXXXX
