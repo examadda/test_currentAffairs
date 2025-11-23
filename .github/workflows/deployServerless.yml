@@ -71,7 +71,7 @@ jobs:
           fi
 
       - name: Deploy with Serverless Components
-        run: npx --yes @serverless/cli@latest components deploy --stage prod --verbose
+        run: npx @serverless/cli@latest components info --stage prod
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
