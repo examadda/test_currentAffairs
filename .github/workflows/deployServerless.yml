@@ -3,6 +3,7 @@ name: CI/CD — Deploy Next.js (serverless-next.js)
 on:
   push:
     branches: ["main"]
+  workflow_dispatch:
 
 env:
   NODE_OPTIONS: --max_old_space_size=4096
@@ -11,10 +12,10 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
-      BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+      BUCKET_NAME: ${{ secrets.BUCKET_NAME || '' }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID || '' }}
 
     steps:
       - name: Checkout
@@ -23,18 +24,10 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "18"
           cache: "npm"
 
-      - name: Cache .next
-        uses: actions/cache@v4
-        with:
-          path: .next/cache
-          key: ${{ runner.os }}-next-cache-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-next-cache-
-
-      - name: Install dependencies
+      - name: Install deps
         run: npm ci
 
       - name: Build Next.js
@@ -49,54 +42,42 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Verify AWS identity (debug)
-        run: aws sts get-caller-identity
-
-      - name: Ensure S3 bucket exists
+      - name: Ensure S3 bucket exists (optional)
         if: ${{ env.BUCKET_NAME != '' }}
-        env:
-          BUCKET: ${{ env.BUCKET_NAME }}
-          REGION: ${{ secrets.AWS_REGION }}
         run: |
           set -e
-          echo "Checking bucket: $BUCKET"
+          REGION="${{ env.AWS_REGION }}"
+          BUCKET="${{ env.BUCKET_NAME }}"
           if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
-            echo "Bucket exists"
+            echo "Bucket exists: $BUCKET"
           else
-            echo "Creating bucket $BUCKET"
-            aws s3api create-bucket \
-              --bucket "$BUCKET" \
-              --region "$REGION" \
-              --create-bucket-configuration LocationConstraint="$REGION"
-            echo "Created bucket"
+            if [ "$REGION" = "us-east-1" ]; then
+              aws s3api create-bucket --bucket "$BUCKET"
+            else
+              aws s3api create-bucket --bucket "$BUCKET" --region "$REGION" --create-bucket-configuration LocationConstraint="$REGION"
+            fi
           fi
 
-      - name: Sync Next.js static files to S3 (NO ACLs)
+      - name: Sync static to S3 (optional)
         if: ${{ env.BUCKET_NAME != '' }}
-        env:
-          BUCKET: ${{ env.BUCKET_NAME }}
-          REGION: ${{ secrets.AWS_REGION }}
         run: |
-          set -e
+          REGION="${{ env.AWS_REGION }}"
+          BUCKET="${{ env.BUCKET_NAME }}"
           if [ -d ".next/static" ]; then
-            echo "Syncing .next/static -> s3://$BUCKET/_next/static"
-            aws s3 sync .next/static s3://$BUCKET/_next/static --region $REGION
+            aws s3 sync .next/static s3://$BUCKET/_next/static --region $REGION --exact-timestamps
           fi
-
           if [ -d "public" ]; then
-            echo "Syncing public -> s3://$BUCKET/public"
-            aws s3 sync public s3://$BUCKET/public --region $REGION || true
+            aws s3 sync public s3://$BUCKET/ --region $REGION --exact-timestamps || true
           fi
 
-      - name: Deploy with Serverless Components CLI
+      - name: Deploy with Serverless Components
         run: npx --yes @serverless/cli@latest components deploy --stage prod --verbose
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_REGION: ${{ env.AWS_REGION }}
           NODE_OPTIONS: ${{ env.NODE_OPTIONS }}
 
-      # Enable if using CloudFront
-      # - name: CloudFront invalidate
-      #   if: ${{ env.CLOUDFRONT_DISTRIBUTION_ID != '' }}
-      #   run: aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+      - name: CloudFront invalidation (optional)
+        if: ${{ env.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+        run: aws cloudfront create-invalidation --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*"

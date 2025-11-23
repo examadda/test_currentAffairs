@@ -1,12 +1,8 @@
-CurrentAffairsApp:
-  component: "@sls-next/serverless-component@latest"
-  inputs:
-    bucketName: "post-examadda"
-    memory: 1024
-    timeout: 10
-    cloudfront:
-      defaults:
-        ttl: 86400
-    domain:   # enable if you have Route53 hosted zone
-      domainName: examadda.org
-      hostedZoneId: ZXXXXXXXXXXXX
+name: nextjs-app
+component: "@sls-next/serverless-component@latest"
+inputs:
+  stage: prod
+  # optional: bucketName: my-nextjs-bucket
+  # optional: domain: example.com
+  memory: 1024
+  timeout: 10
