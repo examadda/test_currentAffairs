@@ -71,7 +71,7 @@ jobs:
           fi
 
       - name: Deploy with Serverless Components
-        run: npx @serverless/cli@latest components info --stage prod
+        run: npx @serverless/cli@latest components deploy --stage prod --verbose
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -81,3 +81,9 @@ jobs:
       - name: CloudFront invalidation (optional)
         if: ${{ env.CLOUDFRONT_DISTRIBUTION_ID != '' }}
         run: aws cloudfront create-invalidation --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*"
+      - name: Show Deployment Info (CloudFront URL)
+        run: npx @serverless/cli@latest components info --stage prod
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
